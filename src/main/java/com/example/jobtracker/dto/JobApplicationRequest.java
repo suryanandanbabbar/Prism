@@ -34,6 +34,13 @@ public class JobApplicationRequest {
     @Size(max = 10000, message = "Job description must be at most 10000 characters")
     private String jobDescription;
 
+    private Double matchScore;
+
+    private Long suggestedResumeVersionId;
+
+    @Size(max = 10000, message = "Application payload must be at most 10000 characters")
+    private String applicationPayload;
+
     @NotBlank(message = "Resume version is required")
     @Size(max = 80, message = "Resume version must be at most 80 characters")
     private String resumeVersion;
@@ -95,6 +102,30 @@ public class JobApplicationRequest {
 
     public void setJobDescription(String jobDescription) {
         this.jobDescription = jobDescription;
+    }
+
+    public Double getMatchScore() {
+        return matchScore;
+    }
+
+    public void setMatchScore(Double matchScore) {
+        this.matchScore = matchScore;
+    }
+
+    public Long getSuggestedResumeVersionId() {
+        return suggestedResumeVersionId;
+    }
+
+    public void setSuggestedResumeVersionId(Long suggestedResumeVersionId) {
+        this.suggestedResumeVersionId = suggestedResumeVersionId;
+    }
+
+    public String getApplicationPayload() {
+        return applicationPayload;
+    }
+
+    public void setApplicationPayload(String applicationPayload) {
+        this.applicationPayload = applicationPayload;
     }
 
     public String getResumeVersion() {

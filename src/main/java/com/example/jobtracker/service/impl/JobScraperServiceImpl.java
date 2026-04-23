@@ -1,5 +1,6 @@
 package com.example.jobtracker.service.impl;
 
+import com.example.jobtracker.config.AutoApplyProperties;
 import com.example.jobtracker.dto.JobApplicationResponse;
 import com.example.jobtracker.dto.JobScrapeResultResponse;
 import com.example.jobtracker.dto.JobScraperClientRequest;
@@ -8,11 +9,16 @@ import com.example.jobtracker.dto.ScrapedJobResponse;
 import com.example.jobtracker.entity.ApplicationStatus;
 import com.example.jobtracker.entity.JobApplication;
 import com.example.jobtracker.entity.JobPreference;
+import com.example.jobtracker.entity.ResumeVersion;
 import com.example.jobtracker.exception.ResourceNotFoundException;
 import com.example.jobtracker.repository.JobApplicationRepository;
 import com.example.jobtracker.repository.JobPreferenceRepository;
+import com.example.jobtracker.repository.ResumeVersionRepository;
 import com.example.jobtracker.service.JobScraperClient;
+import com.example.jobtracker.service.JobMatchService;
 import com.example.jobtracker.service.JobScraperService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -20,6 +26,8 @@ import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.modelmapper.ModelMapper;
@@ -35,16 +43,28 @@ public class JobScraperServiceImpl implements JobScraperService {
 
     private final JobPreferenceRepository jobPreferenceRepository;
     private final JobApplicationRepository jobApplicationRepository;
+    private final ResumeVersionRepository resumeVersionRepository;
     private final JobScraperClient jobScraperClient;
+    private final JobMatchService jobMatchService;
+    private final AutoApplyProperties autoApplyProperties;
+    private final ObjectMapper objectMapper;
     private final ModelMapper modelMapper;
 
     public JobScraperServiceImpl(JobPreferenceRepository jobPreferenceRepository,
             JobApplicationRepository jobApplicationRepository,
+            ResumeVersionRepository resumeVersionRepository,
             JobScraperClient jobScraperClient,
+            JobMatchService jobMatchService,
+            AutoApplyProperties autoApplyProperties,
+            ObjectMapper objectMapper,
             ModelMapper modelMapper) {
         this.jobPreferenceRepository = jobPreferenceRepository;
         this.jobApplicationRepository = jobApplicationRepository;
+        this.resumeVersionRepository = resumeVersionRepository;
         this.jobScraperClient = jobScraperClient;
+        this.jobMatchService = jobMatchService;
+        this.autoApplyProperties = autoApplyProperties;
+        this.objectMapper = objectMapper;
         this.modelMapper = modelMapper;
     }
 
@@ -117,6 +137,7 @@ public class JobScraperServiceImpl implements JobScraperService {
             application.setJobHash(jobHash);
             application.setResumeVersion("N/A");
             application.setNotes("Discovered by scraper");
+            evaluateForApproval(preference, application);
 
             JobApplication savedApplication = jobApplicationRepository.save(application);
             result.getSavedJobs().add(modelMapper.map(savedApplication, JobApplicationResponse.class));
@@ -155,5 +176,44 @@ public class JobScraperServiceImpl implements JobScraperService {
 
     private String normalize(String value) {
         return value == null ? "" : value.trim().toLowerCase();
+    }
+
+    private void evaluateForApproval(JobPreference preference, JobApplication application) {
+        double matchScore = jobMatchService.score(preference, application);
+        application.setMatchScore(matchScore);
+        if (matchScore <= autoApplyProperties.getMatchThreshold()) {
+            return;
+        }
+
+        Optional<ResumeVersion> resumeVersion = resumeVersionRepository.findTopByCvDocumentUserIdOrderByCreatedAtDesc(
+                preference.getUser().getId());
+        if (resumeVersion.isEmpty()) {
+            application.setNotes("Discovered by scraper; match threshold passed but no resume version is available");
+            return;
+        }
+
+        ResumeVersion suggestedVersion = resumeVersion.get();
+        application.setStatus(ApplicationStatus.PENDING_APPROVAL);
+        application.setSuggestedResumeVersionId(suggestedVersion.getId());
+        application.setResumeVersion(suggestedVersion.getVersionLabel());
+        application.setApplicationPayload(createApplicationPayload(preference, application, suggestedVersion));
+        application.setNotes("Pending user approval before auto apply");
+    }
+
+    private String createApplicationPayload(JobPreference preference, JobApplication application,
+            ResumeVersion resumeVersion) {
+        try {
+            return objectMapper.writeValueAsString(Map.of(
+                    "company", application.getCompanyName(),
+                    "role", application.getRole(),
+                    "source", application.getSource(),
+                    "jobLink", application.getJobLink(),
+                    "matchScore", application.getMatchScore(),
+                    "preferenceId", preference.getId(),
+                    "resumeVersionId", resumeVersion.getId(),
+                    "resumeVersionLabel", resumeVersion.getVersionLabel()));
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Could not create application payload", exception);
+        }
     }
 }

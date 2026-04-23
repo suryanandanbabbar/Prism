@@ -1,5 +1,6 @@
 package com.example.jobtracker;
 
+import com.example.jobtracker.config.AutoApplyProperties;
 import com.example.jobtracker.config.FileStorageProperties;
 import com.example.jobtracker.config.JobScraperProperties;
 import com.example.jobtracker.config.ResumeProcessingProperties;
@@ -10,7 +11,12 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling
-@EnableConfigurationProperties({FileStorageProperties.class, ResumeProcessingProperties.class, JobScraperProperties.class})
+@EnableConfigurationProperties({
+        FileStorageProperties.class,
+        ResumeProcessingProperties.class,
+        JobScraperProperties.class,
+        AutoApplyProperties.class
+})
 public class JobTrackerApplication {
 
     public static void main(String[] args) {

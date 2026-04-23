@@ -42,6 +42,12 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_GATEWAY, exception.getMessage(), request, null);
     }
 
+    @ExceptionHandler(InvalidWorkflowException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidWorkflow(InvalidWorkflowException exception,
+            HttpServletRequest request) {
+        return buildResponse(HttpStatus.BAD_REQUEST, exception.getMessage(), request, null);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException exception,
             HttpServletRequest request) {

@@ -31,4 +31,16 @@ public class RestClientConfig {
                 .requestFactory(requestFactory)
                 .build();
     }
+
+    @Bean
+    public RestClient autoApplyRestClient(AutoApplyProperties properties) {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Math.toIntExact(properties.getConnectTimeout().toMillis()));
+        requestFactory.setReadTimeout(Math.toIntExact(properties.getReadTimeout().toMillis()));
+
+        return RestClient.builder()
+                .baseUrl(properties.getBaseUrl())
+                .requestFactory(requestFactory)
+                .build();
+    }
 }

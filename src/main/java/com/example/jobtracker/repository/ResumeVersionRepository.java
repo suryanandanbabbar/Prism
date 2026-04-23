@@ -12,4 +12,6 @@ public interface ResumeVersionRepository extends JpaRepository<ResumeVersion, Lo
     Optional<ResumeVersion> findTopByCvDocumentIdOrderByVersionNumberDesc(Long cvDocumentId);
 
     Optional<ResumeVersion> findByCvDocumentIdAndVersionNumber(Long cvDocumentId, Integer versionNumber);
+
+    Optional<ResumeVersion> findTopByCvDocumentUserIdOrderByCreatedAtDesc(Long userId);
 }

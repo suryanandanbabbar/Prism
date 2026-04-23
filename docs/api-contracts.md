@@ -81,6 +81,59 @@ Request:
 }
 ```
 
+## Auto Apply Approval APIs
+
+### List Pending Applications
+
+`GET /applications/pending`
+
+Returns jobs that passed the match threshold and are waiting for explicit user approval.
+
+### Approve Application
+
+`POST /applications/{id}/approve`
+
+Only applications in `PENDING_APPROVAL` can be approved. Spring calls the Auto Apply service, stores an automation log, and updates status to `APPLIED` only when the automation service reports success.
+
+### Reject Application
+
+`POST /applications/{id}/reject`
+
+Marks the pending application as `REJECTED` and does not call automation.
+
+### Application Logs
+
+`GET /applications/{id}/logs`
+
+Returns success/failure logs for approvals, rejections, and automation attempts.
+
+### Internal Auto Apply Service
+
+`POST http://localhost:8020/apply`
+
+Request:
+
+```json
+{
+  "job_application_id": 12,
+  "company": "Acme",
+  "role": "Backend Engineer",
+  "job_link": "https://jobs.example.com/acme/backend",
+  "source": "LinkedIn",
+  "resume_file_path": "/absolute/path/to/resume.pdf",
+  "payload": "{\"matchScore\":0.8}"
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "Simulated application submitted for Backend Engineer at Acme via LinkedIn"
+}
+```
+
 Response:
 
 ```json

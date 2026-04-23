@@ -43,6 +43,15 @@ public class JobApplication {
     @Column(name = "job_hash", unique = true, length = 64)
     private String jobHash;
 
+    @Column(name = "match_score")
+    private Double matchScore;
+
+    @Column(name = "suggested_resume_version_id")
+    private Long suggestedResumeVersionId;
+
+    @Column(name = "application_payload", columnDefinition = "TEXT")
+    private String applicationPayload;
+
     @Column(name = "resume_version", nullable = false, length = 80)
     private String resumeVersion;
 
@@ -119,6 +128,30 @@ public class JobApplication {
 
     public void setJobHash(String jobHash) {
         this.jobHash = jobHash;
+    }
+
+    public Double getMatchScore() {
+        return matchScore;
+    }
+
+    public void setMatchScore(Double matchScore) {
+        this.matchScore = matchScore;
+    }
+
+    public Long getSuggestedResumeVersionId() {
+        return suggestedResumeVersionId;
+    }
+
+    public void setSuggestedResumeVersionId(Long suggestedResumeVersionId) {
+        this.suggestedResumeVersionId = suggestedResumeVersionId;
+    }
+
+    public String getApplicationPayload() {
+        return applicationPayload;
+    }
+
+    public void setApplicationPayload(String applicationPayload) {
+        this.applicationPayload = applicationPayload;
     }
 
     public String getResumeVersion() {

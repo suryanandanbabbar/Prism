@@ -14,6 +14,9 @@ public class JobApplicationResponse {
     private String jobLink;
     private String jobDescription;
     private String jobHash;
+    private Double matchScore;
+    private Long suggestedResumeVersionId;
+    private String applicationPayload;
     private String resumeVersion;
     private String notes;
 
@@ -87,6 +90,30 @@ public class JobApplicationResponse {
 
     public void setJobHash(String jobHash) {
         this.jobHash = jobHash;
+    }
+
+    public Double getMatchScore() {
+        return matchScore;
+    }
+
+    public void setMatchScore(Double matchScore) {
+        this.matchScore = matchScore;
+    }
+
+    public Long getSuggestedResumeVersionId() {
+        return suggestedResumeVersionId;
+    }
+
+    public void setSuggestedResumeVersionId(Long suggestedResumeVersionId) {
+        this.suggestedResumeVersionId = suggestedResumeVersionId;
+    }
+
+    public String getApplicationPayload() {
+        return applicationPayload;
+    }
+
+    public void setApplicationPayload(String applicationPayload) {
+        this.applicationPayload = applicationPayload;
     }
 
     public String getResumeVersion() {

@@ -38,3 +38,9 @@ app:
     connect-timeout: 3s
     read-timeout: 45s
     scheduler-enabled: true
+  auto-apply:
+    base-url: http://localhost:8020
+    connect-timeout: 3s
+    read-timeout: 60s
+    match-threshold: 0.6
+    disabled-platforms: []
