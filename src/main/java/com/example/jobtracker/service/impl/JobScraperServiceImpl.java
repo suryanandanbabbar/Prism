@@ -8,10 +8,12 @@ import com.example.jobtracker.dto.JobScraperClientResponse;
 import com.example.jobtracker.dto.ScrapedJobResponse;
 import com.example.jobtracker.entity.ApplicationStatus;
 import com.example.jobtracker.entity.JobApplication;
+import com.example.jobtracker.entity.JobApplicationStatusHistory;
 import com.example.jobtracker.entity.JobPreference;
 import com.example.jobtracker.entity.ResumeVersion;
 import com.example.jobtracker.exception.ResourceNotFoundException;
 import com.example.jobtracker.repository.JobApplicationRepository;
+import com.example.jobtracker.repository.JobApplicationStatusHistoryRepository;
 import com.example.jobtracker.repository.JobPreferenceRepository;
 import com.example.jobtracker.repository.ResumeVersionRepository;
 import com.example.jobtracker.service.JobScraperClient;
@@ -23,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
@@ -43,6 +46,7 @@ public class JobScraperServiceImpl implements JobScraperService {
 
     private final JobPreferenceRepository jobPreferenceRepository;
     private final JobApplicationRepository jobApplicationRepository;
+    private final JobApplicationStatusHistoryRepository historyRepository;
     private final ResumeVersionRepository resumeVersionRepository;
     private final JobScraperClient jobScraperClient;
     private final JobMatchService jobMatchService;
@@ -52,6 +56,7 @@ public class JobScraperServiceImpl implements JobScraperService {
 
     public JobScraperServiceImpl(JobPreferenceRepository jobPreferenceRepository,
             JobApplicationRepository jobApplicationRepository,
+            JobApplicationStatusHistoryRepository historyRepository,
             ResumeVersionRepository resumeVersionRepository,
             JobScraperClient jobScraperClient,
             JobMatchService jobMatchService,
@@ -60,6 +65,7 @@ public class JobScraperServiceImpl implements JobScraperService {
             ModelMapper modelMapper) {
         this.jobPreferenceRepository = jobPreferenceRepository;
         this.jobApplicationRepository = jobApplicationRepository;
+        this.historyRepository = historyRepository;
         this.resumeVersionRepository = resumeVersionRepository;
         this.jobScraperClient = jobScraperClient;
         this.jobMatchService = jobMatchService;
@@ -140,6 +146,13 @@ public class JobScraperServiceImpl implements JobScraperService {
             evaluateForApproval(preference, application);
 
             JobApplication savedApplication = jobApplicationRepository.save(application);
+            if (savedApplication.getStatus() == ApplicationStatus.PENDING_APPROVAL) {
+                recordHistory(savedApplication, null, ApplicationStatus.DISCOVERED, "Scraper discovered job");
+                recordHistory(savedApplication, ApplicationStatus.DISCOVERED, ApplicationStatus.PENDING_APPROVAL,
+                        "Match threshold passed");
+            } else {
+                recordHistory(savedApplication, null, savedApplication.getStatus(), "Scraper discovered job");
+            }
             result.getSavedJobs().add(modelMapper.map(savedApplication, JobApplicationResponse.class));
             result.setSavedCount(result.getSavedCount() + 1);
         }
@@ -176,6 +189,17 @@ public class JobScraperServiceImpl implements JobScraperService {
 
     private String normalize(String value) {
         return value == null ? "" : value.trim().toLowerCase();
+    }
+
+    private void recordHistory(JobApplication application, ApplicationStatus fromStatus, ApplicationStatus toStatus,
+            String reason) {
+        JobApplicationStatusHistory history = new JobApplicationStatusHistory();
+        history.setJobApplication(application);
+        history.setFromStatus(fromStatus);
+        history.setToStatus(toStatus);
+        history.setReason(reason);
+        history.setChangedAt(OffsetDateTime.now());
+        historyRepository.save(history);
     }
 
     private void evaluateForApproval(JobPreference preference, JobApplication application) {

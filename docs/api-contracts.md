@@ -125,6 +125,55 @@ Request:
 }
 ```
 
+## Job Tracking Dashboard APIs
+
+### Search Applications
+
+`GET /applications`
+
+Query parameters:
+
+- `status`: optional enum, for example `APPLIED`
+- `company`: optional partial company match
+- `fromDate`: optional ISO date, for example `2026-04-01`
+- `toDate`: optional ISO date
+- `keyword`: optional search over company and role
+- `page`, `size`, `sort`: standard Spring pagination and sorting
+
+Example:
+
+`GET /applications?status=APPLIED&keyword=backend&page=0&size=20&sort=appliedDate,desc`
+
+### CRUD Applications
+
+- `POST /applications`
+- `GET /applications/{id}`
+- `PUT /applications/{id}`
+- `DELETE /applications/{id}`
+
+### Timeline
+
+`GET /applications/{id}/timeline`
+
+Returns status history rows ordered newest first.
+
+### Dashboard Stats
+
+`GET /dashboard/stats`
+
+Response includes:
+
+- `totalApplications`
+- `applicationsPerStatus`
+- `successRate`
+- `weeklyActivity`
+
+### CSV Export
+
+`GET /applications/export`
+
+Accepts the same filters as `GET /applications` and returns `text/csv`.
+
 Response:
 
 ```json

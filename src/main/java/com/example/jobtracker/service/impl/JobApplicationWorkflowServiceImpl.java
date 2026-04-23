@@ -8,12 +8,14 @@ import com.example.jobtracker.dto.JobApplicationResponse;
 import com.example.jobtracker.entity.ApplicationAutomationLog;
 import com.example.jobtracker.entity.ApplicationStatus;
 import com.example.jobtracker.entity.JobApplication;
+import com.example.jobtracker.entity.JobApplicationStatusHistory;
 import com.example.jobtracker.entity.ResumeVersion;
 import com.example.jobtracker.exception.ExternalServiceException;
 import com.example.jobtracker.exception.InvalidWorkflowException;
 import com.example.jobtracker.exception.ResourceNotFoundException;
 import com.example.jobtracker.repository.ApplicationAutomationLogRepository;
 import com.example.jobtracker.repository.JobApplicationRepository;
+import com.example.jobtracker.repository.JobApplicationStatusHistoryRepository;
 import com.example.jobtracker.repository.ResumeVersionRepository;
 import com.example.jobtracker.service.AutoApplyClient;
 import com.example.jobtracker.service.JobApplicationWorkflowService;
@@ -32,6 +34,7 @@ public class JobApplicationWorkflowServiceImpl implements JobApplicationWorkflow
     private final JobApplicationRepository jobApplicationRepository;
     private final ResumeVersionRepository resumeVersionRepository;
     private final ApplicationAutomationLogRepository logRepository;
+    private final JobApplicationStatusHistoryRepository historyRepository;
     private final AutoApplyClient autoApplyClient;
     private final AutoApplyProperties autoApplyProperties;
     private final ModelMapper modelMapper;
@@ -39,12 +42,14 @@ public class JobApplicationWorkflowServiceImpl implements JobApplicationWorkflow
     public JobApplicationWorkflowServiceImpl(JobApplicationRepository jobApplicationRepository,
             ResumeVersionRepository resumeVersionRepository,
             ApplicationAutomationLogRepository logRepository,
+            JobApplicationStatusHistoryRepository historyRepository,
             AutoApplyClient autoApplyClient,
             AutoApplyProperties autoApplyProperties,
             ModelMapper modelMapper) {
         this.jobApplicationRepository = jobApplicationRepository;
         this.resumeVersionRepository = resumeVersionRepository;
         this.logRepository = logRepository;
+        this.historyRepository = historyRepository;
         this.autoApplyClient = autoApplyClient;
         this.autoApplyProperties = autoApplyProperties;
         this.modelMapper = modelMapper;
@@ -93,8 +98,10 @@ public class JobApplicationWorkflowServiceImpl implements JobApplicationWorkflow
             throw exception;
         }
         if (response != null && response.isSuccess()) {
+            ApplicationStatus previousStatus = application.getStatus();
             application.setStatus(ApplicationStatus.APPLIED);
             application.setAppliedDate(LocalDate.now());
+            recordHistory(application, previousStatus, ApplicationStatus.APPLIED, "User approved auto apply");
             log(application, "APPROVE", "SUCCESS", response.getMessage());
             return modelMapper.map(jobApplicationRepository.save(application), JobApplicationResponse.class);
         }
@@ -107,7 +114,9 @@ public class JobApplicationWorkflowServiceImpl implements JobApplicationWorkflow
     public JobApplicationResponse reject(Long applicationId) {
         JobApplication application = getApplication(applicationId);
         assertPending(application);
+        ApplicationStatus previousStatus = application.getStatus();
         application.setStatus(ApplicationStatus.REJECTED);
+        recordHistory(application, previousStatus, ApplicationStatus.REJECTED, "User rejected pending application");
         log(application, "REJECT", "SUCCESS", "Application rejected by user before automation");
         return modelMapper.map(jobApplicationRepository.save(application), JobApplicationResponse.class);
     }
@@ -148,6 +157,17 @@ public class JobApplicationWorkflowServiceImpl implements JobApplicationWorkflow
         automationLog.setMessage(message);
         automationLog.setCreatedAt(OffsetDateTime.now());
         logRepository.save(automationLog);
+    }
+
+    private void recordHistory(JobApplication application, ApplicationStatus fromStatus, ApplicationStatus toStatus,
+            String reason) {
+        JobApplicationStatusHistory history = new JobApplicationStatusHistory();
+        history.setJobApplication(application);
+        history.setFromStatus(fromStatus);
+        history.setToStatus(toStatus);
+        history.setReason(reason);
+        history.setChangedAt(OffsetDateTime.now());
+        historyRepository.save(history);
     }
 
     private ApplicationAutomationLogResponse toLogResponse(ApplicationAutomationLog log) {

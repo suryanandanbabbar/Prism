@@ -86,6 +86,19 @@ CREATE TABLE IF NOT EXISTS application_automation_logs (
         ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS job_application_status_history (
+    id BIGSERIAL PRIMARY KEY,
+    job_application_id BIGINT NOT NULL,
+    from_status VARCHAR(30),
+    to_status VARCHAR(30) NOT NULL,
+    reason VARCHAR(160) NOT NULL,
+    changed_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    CONSTRAINT fk_job_application_status_history_job_application
+        FOREIGN KEY (job_application_id)
+        REFERENCES job_applications (id)
+        ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_job_preferences_user_id ON job_preferences (user_id);
 CREATE INDEX IF NOT EXISTS idx_job_applications_status ON job_applications (status);
 CREATE INDEX IF NOT EXISTS idx_job_applications_job_hash ON job_applications (job_hash);
@@ -93,3 +106,7 @@ CREATE INDEX IF NOT EXISTS idx_cv_documents_user_id ON cv_documents (user_id);
 CREATE INDEX IF NOT EXISTS idx_resume_versions_cv_document_id ON resume_versions (cv_document_id);
 CREATE INDEX IF NOT EXISTS idx_application_automation_logs_job_application_id
     ON application_automation_logs (job_application_id);
+CREATE INDEX IF NOT EXISTS idx_job_application_status_history_job_application_id
+    ON job_application_status_history (job_application_id);
+CREATE INDEX IF NOT EXISTS idx_job_applications_company_name ON job_applications (company_name);
+CREATE INDEX IF NOT EXISTS idx_job_applications_applied_date ON job_applications (applied_date);
