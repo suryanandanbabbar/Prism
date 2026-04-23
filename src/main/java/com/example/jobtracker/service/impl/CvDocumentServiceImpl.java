@@ -2,18 +2,24 @@ package com.example.jobtracker.service.impl;
 
 import com.example.jobtracker.config.FileStorageProperties;
 import com.example.jobtracker.dto.CvDocumentResponse;
+import com.example.jobtracker.dto.ParsedResumeResponse;
 import com.example.jobtracker.entity.CvDocument;
+import com.example.jobtracker.entity.ResumeVersion;
 import com.example.jobtracker.entity.User;
+import com.example.jobtracker.exception.ExternalServiceException;
 import com.example.jobtracker.exception.FileStorageException;
 import com.example.jobtracker.exception.ResourceNotFoundException;
 import com.example.jobtracker.repository.CvDocumentRepository;
+import com.example.jobtracker.repository.ResumeVersionRepository;
 import com.example.jobtracker.repository.UserRepository;
 import com.example.jobtracker.service.CvDocumentService;
+import com.example.jobtracker.service.ResumeProcessingClient;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -29,19 +35,26 @@ public class CvDocumentServiceImpl implements CvDocumentService {
 
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
             "application/pdf",
-            "application/msword",
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
 
     private final CvDocumentRepository cvDocumentRepository;
+    private final ResumeVersionRepository resumeVersionRepository;
     private final UserRepository userRepository;
     private final FileStorageProperties fileStorageProperties;
+    private final ResumeProcessingClient resumeProcessingClient;
     private final ModelMapper modelMapper;
 
-    public CvDocumentServiceImpl(CvDocumentRepository cvDocumentRepository, UserRepository userRepository,
-            FileStorageProperties fileStorageProperties, ModelMapper modelMapper) {
+    public CvDocumentServiceImpl(CvDocumentRepository cvDocumentRepository,
+            ResumeVersionRepository resumeVersionRepository,
+            UserRepository userRepository,
+            FileStorageProperties fileStorageProperties,
+            ResumeProcessingClient resumeProcessingClient,
+            ModelMapper modelMapper) {
         this.cvDocumentRepository = cvDocumentRepository;
+        this.resumeVersionRepository = resumeVersionRepository;
         this.userRepository = userRepository;
         this.fileStorageProperties = fileStorageProperties;
+        this.resumeProcessingClient = resumeProcessingClient;
         this.modelMapper = modelMapper;
     }
 
@@ -75,9 +88,12 @@ public class CvDocumentServiceImpl implements CvDocumentService {
         document.setFileSize(file.getSize());
         document.setFilePath(destination.toString());
         document.setUploadedAt(OffsetDateTime.now());
+        document.setParseStatus("PENDING");
         document.setUser(user);
 
-        return toResponse(cvDocumentRepository.save(document));
+        CvDocument savedDocument = cvDocumentRepository.save(document);
+        parseAndStoreResume(savedDocument, destination);
+        return toResponse(savedDocument);
     }
 
     @Override
@@ -113,7 +129,7 @@ public class CvDocumentServiceImpl implements CvDocumentService {
             throw new FileStorageException("CV file is required");
         }
         if (!ALLOWED_CONTENT_TYPES.contains(file.getContentType())) {
-            throw new FileStorageException("Only PDF, DOC, and DOCX CV files are supported");
+            throw new FileStorageException("Only PDF and DOCX CV files are supported");
         }
         if (!StringUtils.hasText(file.getOriginalFilename())) {
             throw new FileStorageException("CV file name is required");
@@ -128,6 +144,41 @@ public class CvDocumentServiceImpl implements CvDocumentService {
     private CvDocument getDocument(Long id) {
         return cvDocumentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("CV document not found with id: " + id));
+    }
+
+    private void parseAndStoreResume(CvDocument document, Path destination) {
+        try {
+            ParsedResumeResponse parsedResume = resumeProcessingClient.parse(destination);
+            if (parsedResume == null) {
+                throw new ExternalServiceException("Resume parser service returned an empty response");
+            }
+            document.setParsedName(parsedResume.getName());
+            document.setParsedSkills(join(parsedResume.getSkills()));
+            document.setParsedExperience(join(parsedResume.getExperience()));
+            document.setParsedProjects(join(parsedResume.getProjects()));
+            document.setParseStatus("PARSED");
+            document.setParseError(null);
+
+            ResumeVersion originalVersion = new ResumeVersion();
+            originalVersion.setCvDocument(document);
+            originalVersion.setVersionNumber(1);
+            originalVersion.setVersionLabel("Original");
+            originalVersion.setContent(StringUtils.hasText(parsedResume.getRawText())
+                    ? parsedResume.getRawText()
+                    : "Original resume file: " + document.getOriginalFileName());
+            originalVersion.setCreatedAt(OffsetDateTime.now());
+            resumeVersionRepository.save(originalVersion);
+        } catch (ExternalServiceException exception) {
+            document.setParseStatus("FAILED");
+            document.setParseError(exception.getMessage());
+        }
+    }
+
+    private String join(Collection<String> values) {
+        if (values == null || values.isEmpty()) {
+            return "";
+        }
+        return String.join("\n", values);
     }
 
     private CvDocumentResponse toResponse(CvDocument document) {

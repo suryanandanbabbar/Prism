@@ -38,6 +38,12 @@ CREATE TABLE IF NOT EXISTS cv_documents (
     file_size BIGINT NOT NULL,
     file_path VARCHAR(500) NOT NULL,
     uploaded_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    parsed_name VARCHAR(180),
+    parsed_skills TEXT,
+    parsed_experience TEXT,
+    parsed_projects TEXT,
+    parse_status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
+    parse_error TEXT,
     user_id BIGINT NOT NULL,
     CONSTRAINT fk_cv_documents_user
         FOREIGN KEY (user_id)
@@ -45,6 +51,23 @@ CREATE TABLE IF NOT EXISTS cv_documents (
         ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS resume_versions (
+    id BIGSERIAL PRIMARY KEY,
+    cv_document_id BIGINT NOT NULL,
+    version_number INTEGER NOT NULL,
+    version_label VARCHAR(80) NOT NULL,
+    job_description TEXT,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    CONSTRAINT fk_resume_versions_cv_document
+        FOREIGN KEY (cv_document_id)
+        REFERENCES cv_documents (id)
+        ON DELETE CASCADE,
+    CONSTRAINT uq_resume_versions_cv_document_version
+        UNIQUE (cv_document_id, version_number)
+);
+
 CREATE INDEX IF NOT EXISTS idx_job_preferences_user_id ON job_preferences (user_id);
 CREATE INDEX IF NOT EXISTS idx_job_applications_status ON job_applications (status);
 CREATE INDEX IF NOT EXISTS idx_cv_documents_user_id ON cv_documents (user_id);
+CREATE INDEX IF NOT EXISTS idx_resume_versions_cv_document_id ON resume_versions (cv_document_id);

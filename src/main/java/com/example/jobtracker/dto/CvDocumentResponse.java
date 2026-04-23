@@ -12,6 +12,12 @@ public class CvDocumentResponse {
     private String filePath;
     private OffsetDateTime uploadedAt;
     private Long userId;
+    private String parsedName;
+    private String parsedSkills;
+    private String parsedExperience;
+    private String parsedProjects;
+    private String parseStatus;
+    private String parseError;
 
     public Long getId() {
         return id;
@@ -75,5 +81,53 @@ public class CvDocumentResponse {
 
     public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    public String getParsedName() {
+        return parsedName;
+    }
+
+    public void setParsedName(String parsedName) {
+        this.parsedName = parsedName;
+    }
+
+    public String getParsedSkills() {
+        return parsedSkills;
+    }
+
+    public void setParsedSkills(String parsedSkills) {
+        this.parsedSkills = parsedSkills;
+    }
+
+    public String getParsedExperience() {
+        return parsedExperience;
+    }
+
+    public void setParsedExperience(String parsedExperience) {
+        this.parsedExperience = parsedExperience;
+    }
+
+    public String getParsedProjects() {
+        return parsedProjects;
+    }
+
+    public void setParsedProjects(String parsedProjects) {
+        this.parsedProjects = parsedProjects;
+    }
+
+    public String getParseStatus() {
+        return parseStatus;
+    }
+
+    public void setParseStatus(String parseStatus) {
+        this.parseStatus = parseStatus;
+    }
+
+    public String getParseError() {
+        return parseError;
+    }
+
+    public void setParseError(String parseError) {
+        this.parseError = parseError;
     }
 }
