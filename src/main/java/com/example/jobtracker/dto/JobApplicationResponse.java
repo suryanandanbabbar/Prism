@@ -11,6 +11,9 @@ public class JobApplicationResponse {
     private ApplicationStatus status;
     private LocalDate appliedDate;
     private String source;
+    private String jobLink;
+    private String jobDescription;
+    private String jobHash;
     private String resumeVersion;
     private String notes;
 
@@ -60,6 +63,30 @@ public class JobApplicationResponse {
 
     public void setSource(String source) {
         this.source = source;
+    }
+
+    public String getJobLink() {
+        return jobLink;
+    }
+
+    public void setJobLink(String jobLink) {
+        this.jobLink = jobLink;
+    }
+
+    public String getJobDescription() {
+        return jobDescription;
+    }
+
+    public void setJobDescription(String jobDescription) {
+        this.jobDescription = jobDescription;
+    }
+
+    public String getJobHash() {
+        return jobHash;
+    }
+
+    public void setJobHash(String jobHash) {
+        this.jobHash = jobHash;
     }
 
     public String getResumeVersion() {

@@ -34,6 +34,15 @@ public class JobApplication {
     @Column(nullable = false, length = 120)
     private String source;
 
+    @Column(name = "job_link", length = 1000)
+    private String jobLink;
+
+    @Column(name = "job_description", columnDefinition = "TEXT")
+    private String jobDescription;
+
+    @Column(name = "job_hash", unique = true, length = 64)
+    private String jobHash;
+
     @Column(name = "resume_version", nullable = false, length = 80)
     private String resumeVersion;
 
@@ -86,6 +95,30 @@ public class JobApplication {
 
     public void setSource(String source) {
         this.source = source;
+    }
+
+    public String getJobLink() {
+        return jobLink;
+    }
+
+    public void setJobLink(String jobLink) {
+        this.jobLink = jobLink;
+    }
+
+    public String getJobDescription() {
+        return jobDescription;
+    }
+
+    public void setJobDescription(String jobDescription) {
+        this.jobDescription = jobDescription;
+    }
+
+    public String getJobHash() {
+        return jobHash;
+    }
+
+    public void setJobHash(String jobHash) {
+        this.jobHash = jobHash;
     }
 
     public String getResumeVersion() {

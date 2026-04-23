@@ -28,6 +28,12 @@ public class JobApplicationRequest {
     @Size(max = 120, message = "Source must be at most 120 characters")
     private String source;
 
+    @Size(max = 1000, message = "Job link must be at most 1000 characters")
+    private String jobLink;
+
+    @Size(max = 10000, message = "Job description must be at most 10000 characters")
+    private String jobDescription;
+
     @NotBlank(message = "Resume version is required")
     @Size(max = 80, message = "Resume version must be at most 80 characters")
     private String resumeVersion;
@@ -73,6 +79,22 @@ public class JobApplicationRequest {
 
     public void setSource(String source) {
         this.source = source;
+    }
+
+    public String getJobLink() {
+        return jobLink;
+    }
+
+    public void setJobLink(String jobLink) {
+        this.jobLink = jobLink;
+    }
+
+    public String getJobDescription() {
+        return jobDescription;
+    }
+
+    public void setJobDescription(String jobDescription) {
+        this.jobDescription = jobDescription;
     }
 
     public String getResumeVersion() {

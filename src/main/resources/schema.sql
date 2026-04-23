@@ -24,10 +24,13 @@ CREATE TABLE IF NOT EXISTS job_applications (
     status VARCHAR(30) NOT NULL,
     applied_date DATE NOT NULL,
     source VARCHAR(120) NOT NULL,
+    job_link VARCHAR(1000),
+    job_description TEXT,
+    job_hash VARCHAR(64) UNIQUE,
     resume_version VARCHAR(80) NOT NULL,
     notes TEXT,
     CONSTRAINT chk_job_applications_status
-        CHECK (status IN ('APPLIED', 'INTERVIEW', 'REJECTED', 'OFFER'))
+        CHECK (status IN ('DISCOVERED', 'APPLIED', 'INTERVIEW', 'REJECTED', 'OFFER'))
 );
 
 CREATE TABLE IF NOT EXISTS cv_documents (
@@ -69,5 +72,6 @@ CREATE TABLE IF NOT EXISTS resume_versions (
 
 CREATE INDEX IF NOT EXISTS idx_job_preferences_user_id ON job_preferences (user_id);
 CREATE INDEX IF NOT EXISTS idx_job_applications_status ON job_applications (status);
+CREATE INDEX IF NOT EXISTS idx_job_applications_job_hash ON job_applications (job_hash);
 CREATE INDEX IF NOT EXISTS idx_cv_documents_user_id ON cv_documents (user_id);
 CREATE INDEX IF NOT EXISTS idx_resume_versions_cv_document_id ON resume_versions (cv_document_id);

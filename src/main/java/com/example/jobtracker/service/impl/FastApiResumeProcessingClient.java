@@ -6,6 +6,7 @@ import com.example.jobtracker.dto.ResumeOptimizerClientResponse;
 import com.example.jobtracker.exception.ExternalServiceException;
 import com.example.jobtracker.service.ResumeProcessingClient;
 import java.nio.file.Path;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -20,7 +21,7 @@ public class FastApiResumeProcessingClient implements ResumeProcessingClient {
 
     private final RestClient resumeProcessingRestClient;
 
-    public FastApiResumeProcessingClient(RestClient resumeProcessingRestClient) {
+    public FastApiResumeProcessingClient(@Qualifier("resumeProcessingRestClient") RestClient resumeProcessingRestClient) {
         this.resumeProcessingRestClient = resumeProcessingRestClient;
     }
 

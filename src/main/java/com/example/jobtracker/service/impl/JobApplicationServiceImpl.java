@@ -39,6 +39,8 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         application.setStatus(request.getStatus());
         application.setAppliedDate(request.getAppliedDate());
         application.setSource(request.getSource());
+        application.setJobLink(request.getJobLink());
+        application.setJobDescription(request.getJobDescription());
         application.setResumeVersion(request.getResumeVersion());
         application.setNotes(request.getNotes());
         return modelMapper.map(jobApplicationRepository.save(application), JobApplicationResponse.class);

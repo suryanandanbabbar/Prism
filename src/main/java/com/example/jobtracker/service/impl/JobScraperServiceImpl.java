@@ -1,0 +1,159 @@
+package com.example.jobtracker.service.impl;
+
+import com.example.jobtracker.dto.JobApplicationResponse;
+import com.example.jobtracker.dto.JobScrapeResultResponse;
+import com.example.jobtracker.dto.JobScraperClientRequest;
+import com.example.jobtracker.dto.JobScraperClientResponse;
+import com.example.jobtracker.dto.ScrapedJobResponse;
+import com.example.jobtracker.entity.ApplicationStatus;
+import com.example.jobtracker.entity.JobApplication;
+import com.example.jobtracker.entity.JobPreference;
+import com.example.jobtracker.exception.ResourceNotFoundException;
+import com.example.jobtracker.repository.JobApplicationRepository;
+import com.example.jobtracker.repository.JobPreferenceRepository;
+import com.example.jobtracker.service.JobScraperClient;
+import com.example.jobtracker.service.JobScraperService;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.HexFormat;
+import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.modelmapper.ModelMapper;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+@Service
+@Transactional
+public class JobScraperServiceImpl implements JobScraperService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(JobScraperServiceImpl.class);
+
+    private final JobPreferenceRepository jobPreferenceRepository;
+    private final JobApplicationRepository jobApplicationRepository;
+    private final JobScraperClient jobScraperClient;
+    private final ModelMapper modelMapper;
+
+    public JobScraperServiceImpl(JobPreferenceRepository jobPreferenceRepository,
+            JobApplicationRepository jobApplicationRepository,
+            JobScraperClient jobScraperClient,
+            ModelMapper modelMapper) {
+        this.jobPreferenceRepository = jobPreferenceRepository;
+        this.jobApplicationRepository = jobApplicationRepository;
+        this.jobScraperClient = jobScraperClient;
+        this.modelMapper = modelMapper;
+    }
+
+    @Override
+    public JobScrapeResultResponse scrapeByPreferenceId(Long jobPreferenceId) {
+        JobPreference preference = jobPreferenceRepository.findById(jobPreferenceId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Job preference not found with id: " + jobPreferenceId));
+        return scrapePreference(preference);
+    }
+
+    @Override
+    public void scrapeAllPreferences() {
+        jobPreferenceRepository.findAll().forEach(preference -> {
+            try {
+                scrapePreference(preference);
+            } catch (RuntimeException exception) {
+                // Scheduler should continue processing remaining preferences when one scrape fails.
+                LOGGER.warn("Scheduled scrape failed for job preference id {}", preference.getId(), exception);
+            }
+        });
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<JobApplicationResponse> getDiscoveredJobs() {
+        return jobApplicationRepository.findByStatusOrderByAppliedDateDesc(ApplicationStatus.DISCOVERED).stream()
+                .map(application -> modelMapper.map(application, JobApplicationResponse.class))
+                .toList();
+    }
+
+    private JobScrapeResultResponse scrapePreference(JobPreference preference) {
+        JobScraperClientRequest request = new JobScraperClientRequest(
+                preference.getRole(),
+                preference.getLocation(),
+                parseSkills(preference.getSkills()));
+        JobScraperClientResponse scraperResponse = jobScraperClient.scrape(request);
+
+        JobScrapeResultResponse result = new JobScrapeResultResponse();
+        if (scraperResponse == null || scraperResponse.getJobs() == null) {
+            result.getErrors().add("Job scraper service returned an empty response");
+            return result;
+        }
+
+        result.setFetchedCount(scraperResponse.getJobs().size());
+        if (scraperResponse.getErrors() != null) {
+            result.getErrors().addAll(scraperResponse.getErrors());
+        }
+
+        for (ScrapedJobResponse scrapedJob : scraperResponse.getJobs()) {
+            if (!isValid(scrapedJob)) {
+                result.getErrors().add("Skipped invalid scraped job from source: " + scrapedJob.getSource());
+                continue;
+            }
+
+            String jobHash = createHash(scrapedJob.getCompany(), scrapedJob.getRole(), scrapedJob.getLink());
+            if (jobApplicationRepository.existsByJobHash(jobHash)) {
+                result.setDuplicateCount(result.getDuplicateCount() + 1);
+                continue;
+            }
+
+            JobApplication application = new JobApplication();
+            application.setCompanyName(scrapedJob.getCompany());
+            application.setRole(scrapedJob.getRole());
+            application.setStatus(ApplicationStatus.DISCOVERED);
+            application.setAppliedDate(LocalDate.now());
+            application.setSource(scrapedJob.getSource());
+            application.setJobLink(scrapedJob.getLink());
+            application.setJobDescription(scrapedJob.getDescription());
+            application.setJobHash(jobHash);
+            application.setResumeVersion("N/A");
+            application.setNotes("Discovered by scraper");
+
+            JobApplication savedApplication = jobApplicationRepository.save(application);
+            result.getSavedJobs().add(modelMapper.map(savedApplication, JobApplicationResponse.class));
+            result.setSavedCount(result.getSavedCount() + 1);
+        }
+        return result;
+    }
+
+    private List<String> parseSkills(String skills) {
+        if (!StringUtils.hasText(skills)) {
+            return List.of();
+        }
+        return Arrays.stream(skills.split(","))
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+                .toList();
+    }
+
+    private boolean isValid(ScrapedJobResponse job) {
+        return job != null
+                && StringUtils.hasText(job.getCompany())
+                && StringUtils.hasText(job.getRole())
+                && StringUtils.hasText(job.getLink())
+                && StringUtils.hasText(job.getSource());
+    }
+
+    private String createHash(String company, String role, String link) {
+        String source = normalize(company) + "|" + normalize(role) + "|" + normalize(link);
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(source.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 algorithm is unavailable", exception);
+        }
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.trim().toLowerCase();
+    }
+}

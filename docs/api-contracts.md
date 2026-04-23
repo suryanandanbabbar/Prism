@@ -67,6 +67,71 @@ Response:
 }
 ```
 
+## Job Scraper APIs
+
+### Trigger Job Scrape
+
+`POST /jobs/scrape`
+
+Request:
+
+```json
+{
+  "jobPreferenceId": 1
+}
+```
+
+Response:
+
+```json
+{
+  "fetchedCount": 6,
+  "savedCount": 6,
+  "duplicateCount": 0,
+  "savedJobs": [],
+  "errors": []
+}
+```
+
+Spring reads the `JobPreference`, calls the scraper service, computes `SHA-256(company + role + link)`, and stores new rows in `job_applications` with status `DISCOVERED`.
+
+### List Discovered Jobs
+
+`GET /jobs/discovered`
+
+Returns discovered jobs from `job_applications`.
+
+### Internal Scraper Service
+
+`POST http://localhost:8010/scrape`
+
+Request:
+
+```json
+{
+  "role": "Backend Engineer",
+  "location": "Bengaluru",
+  "skills": ["Java", "Spring Boot", "PostgreSQL"]
+}
+```
+
+Response:
+
+```json
+{
+  "jobs": [
+    {
+      "company": "LinkedIn Partner Labs",
+      "role": "Backend Engineer",
+      "link": "https://jobs.example.com/linkedin-backend-engineer-bengaluru/1",
+      "description": "Backend Engineer role in Bengaluru using Java, Spring Boot.",
+      "source": "LinkedIn"
+    }
+  ],
+  "errors": []
+}
+```
+
 ### Parse Resume
 
 `POST /parse`
